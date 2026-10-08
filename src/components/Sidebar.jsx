@@ -163,22 +163,41 @@ export default function Sidebar() {
           <div>
             <div className="px-3 mb-2">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                INSIGHTS
+                INSIGHTS & ASSISTANT
               </span>
             </div>
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium text-sm transition-all ${
-                activeTab === 'analytics'
-                  ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20'
-                  : 'hover:bg-slate-800/60 text-slate-300 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <BarChart3 className="w-4 h-4 text-violet-400" />
-                <span>Analytics</span>
-              </div>
-            </button>
+            <div className="space-y-1">
+              <button
+                onClick={() => setActiveTab('ai-chat')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  activeTab === 'ai-chat'
+                    ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                    : 'hover:bg-slate-800/60 text-slate-300 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Bot className="w-4 h-4 text-cyan-400" />
+                  <span>AI Assistant</span>
+                </div>
+                <span className="text-[10px] bg-cyan-500/20 text-cyan-300 font-bold px-1.5 py-0.5 rounded">
+                  AI
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  activeTab === 'analytics'
+                    ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20'
+                    : 'hover:bg-slate-800/60 text-slate-300 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <BarChart3 className="w-4 h-4 text-violet-400" />
+                  <span>Analytics</span>
+                </div>
+              </button>
+            </div>
           </div>
 
           {/* SYSTEM */}
