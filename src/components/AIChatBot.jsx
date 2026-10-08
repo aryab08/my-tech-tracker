@@ -149,7 +149,7 @@ export default function AIChatBot({ isFloating = false, onCloseFloating = null }
   return (
     <div className={`bg-slate-900 border border-slate-800 shadow-2xl flex flex-col ${
       isFloating
-        ? 'w-[420px] h-[580px] rounded-3xl overflow-hidden'
+        ? 'w-[92vw] sm:w-[420px] h-[580px] max-h-[80vh] rounded-3xl overflow-hidden border-2 border-cyan-500/40 shadow-2xl shadow-cyan-500/20'
         : 'max-w-5xl mx-auto h-[calc(100vh-140px)] rounded-3xl border my-6'
     }`}>
       {/* Header */}

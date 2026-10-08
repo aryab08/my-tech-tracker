@@ -9,7 +9,7 @@ import AnalyticsView from './components/AnalyticsView';
 import SettingsView from './components/SettingsView';
 import LockScreen from './components/LockScreen';
 import AIChatBot from './components/AIChatBot';
-import { Bot, Sparkles } from 'lucide-react';
+import { Bot, Sparkles, MessageCircleCode } from 'lucide-react';
 
 function AppContent() {
   const { activeTab, isUnlocked, unlockApp, settings, setMasterPasscode } = useApp();
@@ -57,21 +57,35 @@ function AppContent() {
         </main>
       </div>
 
-      {/* Floating AI Chatbot Button & Widget */}
+      {/* ALWAYS VISIBLE FLOATING AI CHATBOT AT BOTTOM-RIGHT CORNER */}
       {activeTab !== 'ai-chat' && (
-        <div className="fixed bottom-6 right-6 z-40">
+        <div className="fixed bottom-6 right-6 z-[99999]">
           {showFloatingBot ? (
-            <AIChatBot isFloating={true} onCloseFloating={() => setShowFloatingBot(false)} />
+            <div className="relative">
+              <AIChatBot isFloating={true} onCloseFloating={() => setShowFloatingBot(false)} />
+            </div>
           ) : (
             <button
               onClick={() => setShowFloatingBot(true)}
-              className="px-4 py-3 rounded-full bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-bold shadow-2xl shadow-cyan-500/30 flex items-center gap-2 hover:scale-105 transition-all group border border-cyan-400/30"
+              className="group relative px-5 py-3.5 rounded-full bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 text-white font-extrabold shadow-2xl shadow-cyan-500/40 flex items-center gap-3 hover:scale-105 transition-all duration-300 border-2 border-cyan-400/40 cursor-pointer"
             >
-              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-white" />
+              {/* Pulse Ring Indicator */}
+              <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-cyan-500 border border-white"></span>
+              </span>
+
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shadow-inner">
+                <Bot className="w-5 h-5 text-white animate-pulse" />
               </div>
-              <span className="text-xs font-bold">Ask AI Assistant</span>
-              <Sparkles className="w-3.5 h-3.5 text-cyan-200 group-hover:rotate-12 transition-transform" />
+
+              <div className="text-left">
+                <div className="text-[10px] text-cyan-200 font-semibold uppercase tracking-wider">Online AI Tutor</div>
+                <div className="text-xs font-black tracking-tight flex items-center gap-1">
+                  <span>AI Assistant</span>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                </div>
+              </div>
             </button>
           )}
         </div>
