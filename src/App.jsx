@@ -7,6 +7,7 @@ import RoadmapView from './components/RoadmapView';
 import ProjectsView from './components/ProjectsView';
 import AnalyticsView from './components/AnalyticsView';
 import SettingsView from './components/SettingsView';
+import TodoRemindersView from './components/TodoRemindersView';
 import LockScreen from './components/LockScreen';
 import AIChatBot from './components/AIChatBot';
 import { Bot, Sparkles } from 'lucide-react';
@@ -23,6 +24,8 @@ function AppContent() {
         return <RoadmapView />;
       case 'projects':
         return <ProjectsView />;
+      case 'todos':
+        return <TodoRemindersView />;
       case 'analytics':
         return <AnalyticsView />;
       case 'settings':

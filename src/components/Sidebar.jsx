@@ -14,7 +14,8 @@ import {
   Moon,
   Sun,
   BookOpen,
-  ChevronRight
+  ChevronRight,
+  CheckSquare
 } from 'lucide-react';
 import AddRoadmapModal from './AddRoadmapModal';
 
@@ -136,27 +137,46 @@ export default function Sidebar() {
             </div>
           </div>
 
-          {/* BUILD / PROJECTS */}
+          {/* BUILD */}
           <div>
             <div className="px-3 mb-2">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                BUILD
+                BUILD & AGENDA
               </span>
             </div>
-            <button
-              onClick={() => setActiveTab('projects')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium text-sm transition-all ${
-                activeTab === 'projects'
-                  ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                  : 'hover:bg-slate-800/60 text-slate-300 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <FolderGit2 className="w-4 h-4 text-indigo-400" />
-                <span>Projects</span>
-              </div>
-              <ChevronRight className="w-4 h-4 opacity-50" />
-            </button>
+            <div className="space-y-1">
+              <button
+                onClick={() => setActiveTab('todos')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  activeTab === 'todos'
+                    ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                    : 'hover:bg-slate-800/60 text-slate-300 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <CheckSquare className="w-4 h-4 text-indigo-400" />
+                  <span>Todos & Alarms</span>
+                </div>
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold px-1.5 py-0.5 rounded">
+                  🔔
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('projects')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  activeTab === 'projects'
+                    ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                    : 'hover:bg-slate-800/60 text-slate-300 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <FolderGit2 className="w-4 h-4 text-indigo-400" />
+                  <span>Projects</span>
+                </div>
+                <ChevronRight className="w-4 h-4 opacity-50" />
+              </button>
+            </div>
           </div>
 
           {/* INSIGHTS */}

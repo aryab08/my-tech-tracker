@@ -9,6 +9,7 @@ const LOCAL_STORAGE_KEY_ROADMAPS = 'my_tech_tracker_roadmaps_v2';
 const LOCAL_STORAGE_KEY_PROJECTS = 'my_tech_tracker_projects_v2';
 const LOCAL_STORAGE_KEY_HISTORY = 'my_tech_tracker_history_v2';
 const LOCAL_STORAGE_KEY_SETTINGS = 'my_tech_tracker_settings_v2';
+const LOCAL_STORAGE_KEY_TODOS = 'my_tech_tracker_todos_v2';
 
 export function AppProvider({ children }) {
   // 1. Roadmaps State
@@ -75,10 +76,79 @@ export function AppProvider({ children }) {
     };
   });
 
-  // 4b. Security Lock State
-  const [isUnlocked, setIsUnlocked] = useState(() => {
-    return sessionStorage.getItem('my_tech_tracker_unlocked') === 'true';
+  // 4c. Todos & Reminders State
+  const [todos, setTodos] = useState(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_TODOS);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse todos:', e);
+      }
+    }
+    return [
+      {
+        id: 't-1',
+        title: 'Study 2 Web Development Topics',
+        category: 'Web Dev',
+        priority: 'High',
+        dueTime: '21:00',
+        completed: false,
+        notifyPhone: true,
+        reminderTriggered: false,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 't-2',
+        title: 'Solve 1 DSA Problem on Arrays',
+        category: 'DSA',
+        priority: 'High',
+        dueTime: '22:00',
+        completed: false,
+        notifyPhone: true,
+        reminderTriggered: false,
+        createdAt: new Date().toISOString()
+      }
+    ];
   });
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEY_TODOS, JSON.stringify(todos));
+  }, [todos]);
+
+  // Background reminder scheduler loop
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      const currentHoursMin = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      setTodos(prevTodos => {
+        let hasChanges = false;
+        const updated = prevTodos.map(todo => {
+          if (
+            !todo.completed &&
+            todo.notifyPhone &&
+            !todo.reminderTriggered &&
+            todo.dueTime === currentHoursMin
+          ) {
+            hasChanges = true;
+            // Fire Phone Push Notification
+            import('../utils/notificationService').then(({ sendNativeNotification }) => {
+              sendNativeNotification(
+                `⏰ Study Reminder: ${todo.title}`,
+                `Time to work on ${todo.category} (${todo.priority} Priority). Open My Tech Tracker!`
+              );
+            });
+            return { ...todo, reminderTriggered: true };
+          }
+          return todo;
+        });
+        return hasChanges ? updated : prevTodos;
+      });
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   // 5. Navigation & Filter State
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'roadmap', 'projects', 'analytics', 'settings'
@@ -623,6 +693,29 @@ export function AppProvider({ children }) {
     setSettings(prev => ({ ...prev, masterPasscode: passcode }));
   };
 
+  const addTodo = (todoData) => {
+    const newTodo = {
+      id: `todo-${Date.now()}`,
+      title: todoData.title,
+      category: todoData.category || 'General',
+      priority: todoData.priority || 'Medium',
+      dueTime: todoData.dueTime || '20:00',
+      completed: false,
+      notifyPhone: todoData.notifyPhone !== false,
+      reminderTriggered: false,
+      createdAt: new Date().toISOString()
+    };
+    setTodos(prev => [newTodo, ...prev]);
+  };
+
+  const toggleTodo = (id) => {
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  };
+
+  const deleteTodo = (id) => {
+    setTodos(prev => prev.filter(t => t.id !== id));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -630,6 +723,10 @@ export function AppProvider({ children }) {
         projects,
         progressHistory,
         settings,
+        todos,
+        addTodo,
+        toggleTodo,
+        deleteTodo,
         isUnlocked,
         unlockApp,
         lockApp,
