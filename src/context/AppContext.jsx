@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { initialRoadmaps } from '../data/initialRoadmaps';
 import { initialProjects } from '../data/initialProjects';
+import { initialWeeklySchedule } from '../data/initialSchedule';
 import confetti from 'canvas-confetti';
 
 const AppContext = createContext();
@@ -10,6 +11,7 @@ const LOCAL_STORAGE_KEY_PROJECTS = 'my_tech_tracker_projects_v2';
 const LOCAL_STORAGE_KEY_HISTORY = 'my_tech_tracker_history_v2';
 const LOCAL_STORAGE_KEY_SETTINGS = 'my_tech_tracker_settings_v2';
 const LOCAL_STORAGE_KEY_TODOS = 'my_tech_tracker_todos_v2';
+const LOCAL_STORAGE_KEY_SCHEDULE = 'my_tech_tracker_schedule_v2';
 
 export function AppProvider({ children }) {
   // 1. Roadmaps State
@@ -116,34 +118,54 @@ export function AppProvider({ children }) {
     localStorage.setItem(LOCAL_STORAGE_KEY_TODOS, JSON.stringify(todos));
   }, [todos]);
 
-  // Background reminder scheduler loop
+  // 4d. Weekly Recurring Schedule State
+  const [weeklySchedule, setWeeklySchedule] = useState(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_SCHEDULE);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse schedule:', e);
+      }
+    }
+    return initialWeeklySchedule;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEY_SCHEDULE, JSON.stringify(weeklySchedule));
+  }, [weeklySchedule]);
+
+  // Background recurring schedule checker (matches Day + Time + Date)
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
+      const currentDayIndex = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
       const currentHoursMin = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const todayDateStr = now.toISOString().split('T')[0];
 
-      setTodos(prevTodos => {
+      setWeeklySchedule(prevSchedule => {
         let hasChanges = false;
-        const updated = prevTodos.map(todo => {
+        const updated = prevSchedule.map(slot => {
           if (
-            !todo.completed &&
-            todo.notifyPhone &&
-            !todo.reminderTriggered &&
-            todo.dueTime === currentHoursMin
+            slot.active &&
+            slot.notifyPhone &&
+            slot.dayIndex === currentDayIndex &&
+            slot.startTime === currentHoursMin &&
+            slot.lastTriggeredDate !== todayDateStr
           ) {
             hasChanges = true;
-            // Fire Phone Push Notification
+            // Trigger Phone Push Alert for Recurring Study Session!
             import('../utils/notificationService').then(({ sendNativeNotification }) => {
               sendNativeNotification(
-                `⏰ Study Reminder: ${todo.title}`,
-                `Time to work on ${todo.category} (${todo.priority} Priority). Open My Tech Tracker!`
+                `⏰ Recurring Study Alarm: ${slot.category} (${slot.day})`,
+                `Time for your ${slot.displayTime} ${slot.category} session! Open My Tech Tracker.`
               );
             });
-            return { ...todo, reminderTriggered: true };
+            return { ...slot, lastTriggeredDate: todayDateStr };
           }
-          return todo;
+          return slot;
         });
-        return hasChanges ? updated : prevTodos;
+        return hasChanges ? updated : prevSchedule;
       });
     }, 10000); // Check every 10 seconds
 
@@ -716,6 +738,42 @@ export function AppProvider({ children }) {
     setTodos(prev => prev.filter(t => t.id !== id));
   };
 
+  const toggleScheduleSlot = (slotId) => {
+    setWeeklySchedule(prev => prev.map(s => s.id === slotId ? { ...s, active: !s.active } : s));
+  };
+
+  const updateScheduleSlotTime = (slotId, startTime, endTime, displayTime) => {
+    setWeeklySchedule(prev => prev.map(s => {
+      if (s.id !== slotId) return s;
+      return { ...s, startTime, endTime, displayTime: displayTime || `${startTime}–${endTime}` };
+    }));
+  };
+
+  const addScheduleSlot = (slotData) => {
+    const dayMap = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 0 };
+    const newSlot = {
+      id: `sch-${Date.now()}`,
+      day: slotData.day,
+      dayIndex: dayMap[slotData.day] ?? 1,
+      category: slotData.category || 'Development',
+      startTime: slotData.startTime || '09:00',
+      endTime: slotData.endTime || '11:00',
+      displayTime: slotData.displayTime || `${slotData.startTime}–${slotData.endTime}`,
+      active: true,
+      notifyPhone: true,
+      lastTriggeredDate: ''
+    };
+    setWeeklySchedule(prev => [...prev, newSlot]);
+  };
+
+  const deleteScheduleSlot = (slotId) => {
+    setWeeklySchedule(prev => prev.filter(s => s.id !== slotId));
+  };
+
+  const resetScheduleToPreset = () => {
+    setWeeklySchedule(initialWeeklySchedule);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -724,9 +782,15 @@ export function AppProvider({ children }) {
         progressHistory,
         settings,
         todos,
+        weeklySchedule,
         addTodo,
         toggleTodo,
         deleteTodo,
+        toggleScheduleSlot,
+        updateScheduleSlotTime,
+        addScheduleSlot,
+        deleteScheduleSlot,
+        resetScheduleToPreset,
         isUnlocked,
         unlockApp,
         lockApp,
