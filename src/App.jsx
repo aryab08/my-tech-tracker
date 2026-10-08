@@ -9,21 +9,11 @@ import AnalyticsView from './components/AnalyticsView';
 import SettingsView from './components/SettingsView';
 import LockScreen from './components/LockScreen';
 import AIChatBot from './components/AIChatBot';
-import { Bot, Sparkles, MessageCircleCode } from 'lucide-react';
+import { Bot, Sparkles } from 'lucide-react';
 
 function AppContent() {
   const { activeTab, isUnlocked, unlockApp, settings, setMasterPasscode } = useApp();
   const [showFloatingBot, setShowFloatingBot] = useState(false);
-
-  if (!isUnlocked) {
-    return (
-      <LockScreen
-        onUnlock={unlockApp}
-        savedPasscode={settings.masterPasscode || 'missionima'}
-        onSetPasscode={setMasterPasscode}
-      />
-    );
-  }
 
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -46,16 +36,28 @@ function AppContent() {
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-slate-950 relative">
-      {/* Sidebar Navigation */}
-      <Sidebar />
+      {!isUnlocked ? (
+        <div className="flex-1">
+          <LockScreen
+            onUnlock={unlockApp}
+            savedPasscode={settings.masterPasscode || 'missionima'}
+            onSetPasscode={setMasterPasscode}
+          />
+        </div>
+      ) : (
+        <>
+          {/* Sidebar Navigation */}
+          <Sidebar />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-        <main className="flex-1 overflow-y-auto relative">
-          {renderActiveTab()}
-        </main>
-      </div>
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col min-w-0">
+            <Header />
+            <main className="flex-1 overflow-y-auto relative">
+              {renderActiveTab()}
+            </main>
+          </div>
+        </>
+      )}
 
       {/* ALWAYS VISIBLE FLOATING AI CHATBOT AT BOTTOM-RIGHT CORNER */}
       {activeTab !== 'ai-chat' && (
