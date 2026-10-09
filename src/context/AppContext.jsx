@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { initialRoadmaps } from '../data/initialRoadmaps';
 import { initialProjects } from '../data/initialProjects';
 import { initialWeeklySchedule } from '../data/initialSchedule';
+import { sendNativeNotification } from '../utils/notificationService';
 import confetti from 'canvas-confetti';
 
 const AppContext = createContext();
@@ -155,12 +156,14 @@ export function AppProvider({ children }) {
           ) {
             hasChanges = true;
             // Trigger Phone Push Alert for Recurring Study Session!
-            import('../utils/notificationService').then(({ sendNativeNotification }) => {
+            try {
               sendNativeNotification(
                 `⏰ Recurring Study Alarm: ${slot.category} (${slot.day})`,
                 `Time for your ${slot.displayTime} ${slot.category} session! Open My Tech Tracker.`
               );
-            });
+            } catch (err) {
+              console.warn('Notification trigger error:', err);
+            }
             return { ...slot, lastTriggeredDate: todayDateStr };
           }
           return slot;
