@@ -1,20 +1,28 @@
-import React, { StrictMode, Component } from 'react'
+import React, { Component, StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
 class ErrorBoundary extends Component {
   constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
+    super(props)
+    this.state = { hasError: false, error: null }
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    return { hasError: true, error }
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('App Runtime Error:', error, errorInfo);
+    console.error('App Runtime Error:', error, errorInfo)
+  }
+
+  handleReset = () => {
+    try {
+      localStorage.clear()
+      sessionStorage.clear()
+    } catch (e) {}
+    window.location.reload()
   }
 
   render() {
@@ -38,11 +46,7 @@ class ErrorBoundary extends Component {
             An unexpected error occurred. Click below to clear cache and reload your personal dashboard.
           </p>
           <button
-            onClick={() => {
-              localStorage.clear();
-              sessionStorage.clear();
-              window.location.reload();
-            }}
+            onClick={this.handleReset}
             style={{
               padding: '0.75rem 1.5rem',
               borderRadius: '0.75rem',
@@ -56,9 +60,10 @@ class ErrorBoundary extends Component {
             Reset Cache & Reload App
           </button>
         </div>
-      );
+      )
     }
-    return this.props.children;
+
+    return this.props.children
   }
 }
 

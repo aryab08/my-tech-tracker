@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { initialRoadmaps } from '../data/initialRoadmaps';
 import { initialProjects } from '../data/initialProjects';
-import { initialWeeklySchedule } from '../data/initialSchedule';
-import { sendNativeNotification } from '../utils/notificationService';
 import confetti from 'canvas-confetti';
 
 const AppContext = createContext();
@@ -11,8 +9,6 @@ const LOCAL_STORAGE_KEY_ROADMAPS = 'my_tech_tracker_roadmaps_v2';
 const LOCAL_STORAGE_KEY_PROJECTS = 'my_tech_tracker_projects_v2';
 const LOCAL_STORAGE_KEY_HISTORY = 'my_tech_tracker_history_v2';
 const LOCAL_STORAGE_KEY_SETTINGS = 'my_tech_tracker_settings_v2';
-const LOCAL_STORAGE_KEY_TODOS = 'my_tech_tracker_todos_v2';
-const LOCAL_STORAGE_KEY_SCHEDULE = 'my_tech_tracker_schedule_v2';
 
 export function AppProvider({ children }) {
   // 1. Roadmaps State
@@ -20,7 +16,8 @@ export function AppProvider({ children }) {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_ROADMAPS);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) {
         console.error('Failed to parse roadmaps from localStorage:', e);
       }
@@ -33,7 +30,8 @@ export function AppProvider({ children }) {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PROJECTS);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) {
         console.error('Failed to parse projects from localStorage:', e);
       }
@@ -46,12 +44,12 @@ export function AppProvider({ children }) {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_HISTORY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) {
         console.error('Failed to parse history:', e);
       }
     }
-    // Default initial history snapshot
     return [
       { date: '2026-10-01', percentage: 0.5, completed: 1, total: 550 },
       { date: '2026-10-05', percentage: 0.5, completed: 1, total: 550 },
@@ -64,7 +62,8 @@ export function AppProvider({ children }) {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed;
       } catch (e) {
         console.error('Failed to parse settings:', e);
       }
@@ -79,126 +78,43 @@ export function AppProvider({ children }) {
     };
   });
 
-  // 4c. Todos & Reminders State
-  const [todos, setTodos] = useState(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_TODOS);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse todos:', e);
-      }
-    }
-    return [
-      {
-        id: 't-1',
-        title: 'Study 2 Web Development Topics',
-        category: 'Web Dev',
-        priority: 'High',
-        dueTime: '21:00',
-        completed: false,
-        notifyPhone: true,
-        reminderTriggered: false,
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: 't-2',
-        title: 'Solve 1 DSA Problem on Arrays',
-        category: 'DSA',
-        priority: 'High',
-        dueTime: '22:00',
-        completed: false,
-        notifyPhone: true,
-        reminderTriggered: false,
-        createdAt: new Date().toISOString()
-      }
-    ];
+  // 4b. Security Lock State
+  const [isUnlocked, setIsUnlocked] = useState(() => {
+    return sessionStorage.getItem('my_tech_tracker_unlocked') === 'true';
   });
-
-  useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_TODOS, JSON.stringify(todos));
-  }, [todos]);
-
-  // 4d. Weekly Recurring Schedule State
-  const [weeklySchedule, setWeeklySchedule] = useState(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_SCHEDULE);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse schedule:', e);
-      }
-    }
-    return initialWeeklySchedule;
-  });
-
-  useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_SCHEDULE, JSON.stringify(weeklySchedule));
-  }, [weeklySchedule]);
-
-  // Background recurring schedule checker (matches Day + Time + Date)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      const currentDayIndex = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
-      const currentHoursMin = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      const todayDateStr = now.toISOString().split('T')[0];
-
-      setWeeklySchedule(prevSchedule => {
-        let hasChanges = false;
-        const updated = prevSchedule.map(slot => {
-          if (
-            slot.active &&
-            slot.notifyPhone &&
-            slot.dayIndex === currentDayIndex &&
-            slot.startTime === currentHoursMin &&
-            slot.lastTriggeredDate !== todayDateStr
-          ) {
-            hasChanges = true;
-            // Trigger Phone Push Alert for Recurring Study Session!
-            try {
-              sendNativeNotification(
-                `⏰ Recurring Study Alarm: ${slot.category} (${slot.day})`,
-                `Time for your ${slot.displayTime} ${slot.category} session! Open My Tech Tracker.`
-              );
-            } catch (err) {
-              console.warn('Notification trigger error:', err);
-            }
-            return { ...slot, lastTriggeredDate: todayDateStr };
-          }
-          return slot;
-        });
-        return hasChanges ? updated : prevSchedule;
-      });
-    }, 10000); // Check every 10 seconds
-
-    return () => clearInterval(interval);
-  }, []);
 
   // 5. Navigation & Filter State
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'roadmap', 'projects', 'analytics', 'settings'
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [activeRoadmapId, setActiveRoadmapId] = useState('web-dev');
   const [searchQuery, setSearchQuery] = useState('');
-  const [roadmapFilter, setRoadmapFilter] = useState('all'); // 'all', 'completed', 'in_progress', 'remaining'
-  const [projectFilter, setProjectFilter] = useState('all'); // 'all', 'Idea', 'Planned', 'In Progress', 'Testing', 'Completed', 'Paused'
+  const [roadmapFilter, setRoadmapFilter] = useState('all');
+  const [projectFilter, setProjectFilter] = useState('all');
   const [selectedProject, setSelectedProject] = useState(null);
 
   // Sync to LocalStorage
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_ROADMAPS, JSON.stringify(roadmaps));
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_ROADMAPS, JSON.stringify(roadmaps));
+    } catch (e) {}
   }, [roadmaps]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_PROJECTS, JSON.stringify(projects));
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_PROJECTS, JSON.stringify(projects));
+    } catch (e) {}
   }, [projects]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_HISTORY, JSON.stringify(progressHistory));
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_HISTORY, JSON.stringify(progressHistory));
+    } catch (e) {}
   }, [progressHistory]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(settings));
-    if (settings.theme === 'dark') {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(settings));
+    } catch (e) {}
+    if (settings?.theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
@@ -208,37 +124,39 @@ export function AppProvider({ children }) {
   // Check today date reset for daily goal counter
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
-    if (settings.todayDate !== today) {
+    if (settings?.todayDate !== today) {
       setSettings(prev => ({ ...prev, todayDate: today, completedTodayCount: 0 }));
     }
   }, []);
 
-  // Helper calculation functions
-  const calculateItemStats = (itemsList) => {
-    const total = itemsList.length;
-    const completed = itemsList.filter(i => i.completed).length;
+  // Safe helper calculation functions
+  const calculateItemStats = (itemsList = []) => {
+    const safeList = Array.isArray(itemsList) ? itemsList : [];
+    const total = safeList.length;
+    const completed = safeList.filter(i => i && i.completed).length;
     const remaining = total - completed;
     const percentage = total > 0 ? Number(((completed / total) * 100).toFixed(1)) : 0;
     return { total, completed, remaining, percentage };
   };
 
-  // Helper to extract all items from a roadmap
+  // Safe helper to extract all items from a roadmap
   const getAllItemsFromRoadmap = (roadmap) => {
     const items = [];
-    if (!roadmap || !roadmap.sections) return items;
+    if (!roadmap || !Array.isArray(roadmap.sections)) return items;
     roadmap.sections.forEach(sec => {
-      if (sec.subsections) {
+      if (sec && Array.isArray(sec.subsections)) {
         sec.subsections.forEach(sub => {
-          if (sub.items) items.push(...sub.items);
+          if (sub && Array.isArray(sub.items)) items.push(...sub.items);
         });
       }
-      if (sec.items) items.push(...sec.items);
+      if (sec && Array.isArray(sec.items)) items.push(...sec.items);
     });
     return items;
   };
 
   const getRoadmapStats = (roadmapId) => {
-    const roadmap = roadmaps.find(r => r.id === roadmapId);
+    const safeRoadmaps = Array.isArray(roadmaps) ? roadmaps : initialRoadmaps;
+    const roadmap = safeRoadmaps.find(r => r && r.id === roadmapId);
     if (!roadmap) return { total: 0, completed: 0, remaining: 0, percentage: 0 };
     const items = getAllItemsFromRoadmap(roadmap);
     return calculateItemStats(items);
@@ -247,10 +165,11 @@ export function AppProvider({ children }) {
   const getOverallLearningStats = () => {
     let total = 0;
     let completed = 0;
-    roadmaps.forEach(r => {
+    const safeRoadmaps = Array.isArray(roadmaps) ? roadmaps : initialRoadmaps;
+    safeRoadmaps.forEach(r => {
       const items = getAllItemsFromRoadmap(r);
       total += items.length;
-      completed += items.filter(i => i.completed).length;
+      completed += items.filter(i => i && i.completed).length;
     });
     const remaining = total - completed;
     const percentage = total > 0 ? Number(((completed / total) * 100).toFixed(1)) : 0;
@@ -258,13 +177,14 @@ export function AppProvider({ children }) {
   };
 
   const getProjectStats = () => {
-    const total = projects.length;
-    const completed = projects.filter(p => p.status === 'Completed').length;
-    const inProgress = projects.filter(p => p.status === 'In Progress').length;
-    const planned = projects.filter(p => p.status === 'Planned').length;
-    const idea = projects.filter(p => p.status === 'Idea').length;
-    const testing = projects.filter(p => p.status === 'Testing').length;
-    const paused = projects.filter(p => p.status === 'Paused').length;
+    const safeProjects = Array.isArray(projects) ? projects : initialProjects;
+    const total = safeProjects.length;
+    const completed = safeProjects.filter(p => p && p.status === 'Completed').length;
+    const inProgress = safeProjects.filter(p => p && p.status === 'In Progress').length;
+    const planned = safeProjects.filter(p => p && p.status === 'Planned').length;
+    const idea = safeProjects.filter(p => p && p.status === 'Idea').length;
+    const testing = safeProjects.filter(p => p && p.status === 'Testing').length;
+    const paused = safeProjects.filter(p => p && p.status === 'Paused').length;
     const percentage = total > 0 ? Number(((completed / total) * 100).toFixed(1)) : 0;
     return { total, completed, inProgress, planned, idea, testing, paused, percentage };
   };
@@ -273,22 +193,24 @@ export function AppProvider({ children }) {
   const addHistorySnapshot = (newRoadmaps) => {
     let total = 0;
     let completed = 0;
-    newRoadmaps.forEach(r => {
+    const safeRoadmaps = Array.isArray(newRoadmaps) ? newRoadmaps : [];
+    safeRoadmaps.forEach(r => {
       const items = getAllItemsFromRoadmap(r);
       total += items.length;
-      completed += items.filter(i => i.completed).length;
+      completed += items.filter(i => i && i.completed).length;
     });
     const percentage = total > 0 ? Number(((completed / total) * 100).toFixed(1)) : 0;
     const today = new Date().toISOString().split('T')[0];
 
     setProgressHistory(prev => {
-      const existingTodayIndex = prev.findIndex(h => h.date === today);
+      const safePrev = Array.isArray(prev) ? prev : [];
+      const existingTodayIndex = safePrev.findIndex(h => h && h.date === today);
       if (existingTodayIndex >= 0) {
-        const updated = [...prev];
+        const updated = [...safePrev];
         updated[existingTodayIndex] = { date: today, percentage, completed, total };
         return updated;
       }
-      return [...prev, { date: today, percentage, completed, total }];
+      return [...safePrev, { date: today, percentage, completed, total }];
     });
   };
 
@@ -297,20 +219,21 @@ export function AppProvider({ children }) {
     let itemWasCompleted = false;
 
     setRoadmaps(prevRoadmaps => {
-      const updated = prevRoadmaps.map(rm => {
-        if (rm.id !== roadmapId) return rm;
+      const safeRoadmaps = Array.isArray(prevRoadmaps) ? prevRoadmaps : [];
+      const updated = safeRoadmaps.map(rm => {
+        if (!rm || rm.id !== roadmapId) return rm;
         return {
           ...rm,
-          sections: rm.sections.map(sec => {
-            if (sec.id !== sectionId) return sec;
+          sections: (rm.sections || []).map(sec => {
+            if (!sec || sec.id !== sectionId) return sec;
             return {
               ...sec,
-              subsections: sec.subsections.map(sub => {
-                if (sub.id !== subsectionId) return sub;
+              subsections: (sec.subsections || []).map(sub => {
+                if (!sub || sub.id !== subsectionId) return sub;
                 return {
                   ...sub,
-                  items: sub.items.map(item => {
-                    if (item.id !== itemId) return item;
+                  items: (sub.items || []).map(item => {
+                    if (!item || item.id !== itemId) return item;
                     const nextCompleted = !item.completed;
                     itemWasCompleted = nextCompleted;
                     return {
@@ -332,7 +255,6 @@ export function AppProvider({ children }) {
     });
 
     if (itemWasCompleted) {
-      // Trigger subtle celebration confetti
       try {
         confetti({
           particleCount: 40,
@@ -341,30 +263,29 @@ export function AppProvider({ children }) {
         });
       } catch (e) {}
 
-      // Update today counter
       setSettings(prev => ({
         ...prev,
-        completedTodayCount: prev.completedTodayCount + 1
+        completedTodayCount: (prev?.completedTodayCount || 0) + 1
       }));
     }
   };
 
   // Update item notes
   const updateItemNotes = (roadmapId, sectionId, subsectionId, itemId, notes) => {
-    setRoadmaps(prev => prev.map(rm => {
-      if (rm.id !== roadmapId) return rm;
+    setRoadmaps(prev => (prev || []).map(rm => {
+      if (!rm || rm.id !== roadmapId) return rm;
       return {
         ...rm,
-        sections: rm.sections.map(sec => {
-          if (sec.id !== sectionId) return sec;
+        sections: (rm.sections || []).map(sec => {
+          if (!sec || sec.id !== sectionId) return sec;
           return {
             ...sec,
-            subsections: sec.subsections.map(sub => {
-              if (sub.id !== subsectionId) return sub;
+            subsections: (sec.subsections || []).map(sub => {
+              if (!sub || sub.id !== subsectionId) return sub;
               return {
                 ...sub,
-                items: sub.items.map(item => {
-                  if (item.id !== itemId) return item;
+                items: (sub.items || []).map(item => {
+                  if (!item || item.id !== itemId) return item;
                   return { ...item, notes };
                 })
               };
@@ -377,7 +298,7 @@ export function AppProvider({ children }) {
 
   // Add new topic / item to a subsection
   const addItem = (roadmapId, sectionId, subsectionId, title) => {
-    if (!title.trim()) return;
+    if (!title || !title.trim()) return;
     const newItem = {
       id: `custom-item-${Date.now()}`,
       title: title.trim(),
@@ -388,19 +309,19 @@ export function AppProvider({ children }) {
     };
 
     setRoadmaps(prev => {
-      const updated = prev.map(rm => {
-        if (rm.id !== roadmapId) return rm;
+      const updated = (prev || []).map(rm => {
+        if (!rm || rm.id !== roadmapId) return rm;
         return {
           ...rm,
-          sections: rm.sections.map(sec => {
-            if (sec.id !== sectionId) return sec;
+          sections: (rm.sections || []).map(sec => {
+            if (!sec || sec.id !== sectionId) return sec;
             return {
               ...sec,
-              subsections: sec.subsections.map(sub => {
-                if (sub.id !== subsectionId) return sub;
+              subsections: (sec.subsections || []).map(sub => {
+                if (!sub || sub.id !== subsectionId) return sub;
                 return {
                   ...sub,
-                  items: [...sub.items, newItem]
+                  items: [...(sub.items || []), newItem]
                 };
               })
             };
@@ -414,21 +335,21 @@ export function AppProvider({ children }) {
 
   // Edit item title
   const editItem = (roadmapId, sectionId, subsectionId, itemId, newTitle) => {
-    if (!newTitle.trim()) return;
-    setRoadmaps(prev => prev.map(rm => {
-      if (rm.id !== roadmapId) return rm;
+    if (!newTitle || !newTitle.trim()) return;
+    setRoadmaps(prev => (prev || []).map(rm => {
+      if (!rm || rm.id !== roadmapId) return rm;
       return {
         ...rm,
-        sections: rm.sections.map(sec => {
-          if (sec.id !== sectionId) return sec;
+        sections: (rm.sections || []).map(sec => {
+          if (!sec || sec.id !== sectionId) return sec;
           return {
             ...sec,
-            subsections: sec.subsections.map(sub => {
-              if (sub.id !== subsectionId) return sub;
+            subsections: (sec.subsections || []).map(sub => {
+              if (!sub || sub.id !== subsectionId) return sub;
               return {
                 ...sub,
-                items: sub.items.map(item => {
-                  if (item.id !== itemId) return item;
+                items: (sub.items || []).map(item => {
+                  if (!item || item.id !== itemId) return item;
                   return { ...item, title: newTitle.trim() };
                 })
               };
@@ -442,19 +363,19 @@ export function AppProvider({ children }) {
   // Delete item
   const deleteItem = (roadmapId, sectionId, subsectionId, itemId) => {
     setRoadmaps(prev => {
-      const updated = prev.map(rm => {
-        if (rm.id !== roadmapId) return rm;
+      const updated = (prev || []).map(rm => {
+        if (!rm || rm.id !== roadmapId) return rm;
         return {
           ...rm,
-          sections: rm.sections.map(sec => {
-            if (sec.id !== sectionId) return sec;
+          sections: (rm.sections || []).map(sec => {
+            if (!sec || sec.id !== sectionId) return sec;
             return {
               ...sec,
-              subsections: sec.subsections.map(sub => {
-                if (sub.id !== subsectionId) return sub;
+              subsections: (sec.subsections || []).map(sub => {
+                if (!sub || sub.id !== subsectionId) return sub;
                 return {
                   ...sub,
-                  items: sub.items.filter(item => item.id !== itemId)
+                  items: (sub.items || []).filter(item => item && item.id !== itemId)
                 };
               })
             };
@@ -468,7 +389,7 @@ export function AppProvider({ children }) {
 
   // Add Section to a roadmap
   const addSection = (roadmapId, sectionTitle) => {
-    if (!sectionTitle.trim()) return;
+    if (!sectionTitle || !sectionTitle.trim()) return;
     const newSec = {
       id: `custom-sec-${Date.now()}`,
       title: sectionTitle.trim(),
@@ -481,11 +402,11 @@ export function AppProvider({ children }) {
       ]
     };
 
-    setRoadmaps(prev => prev.map(rm => {
-      if (rm.id !== roadmapId) return rm;
+    setRoadmaps(prev => (prev || []).map(rm => {
+      if (!rm || rm.id !== roadmapId) return rm;
       return {
         ...rm,
-        sections: [...rm.sections, newSec]
+        sections: [...(rm.sections || []), newSec]
       };
     }));
   };
@@ -493,11 +414,11 @@ export function AppProvider({ children }) {
   // Delete Section
   const deleteSection = (roadmapId, sectionId) => {
     setRoadmaps(prev => {
-      const updated = prev.map(rm => {
-        if (rm.id !== roadmapId) return rm;
+      const updated = (prev || []).map(rm => {
+        if (!rm || rm.id !== roadmapId) return rm;
         return {
           ...rm,
-          sections: rm.sections.filter(sec => sec.id !== sectionId)
+          sections: (rm.sections || []).filter(sec => sec && sec.id !== sectionId)
         };
       });
       addHistorySnapshot(updated);
@@ -507,7 +428,7 @@ export function AppProvider({ children }) {
 
   // Add new Roadmap dynamically
   const addRoadmap = (title, icon = 'BookOpen', description = '') => {
-    if (!title.trim()) return;
+    if (!title || !title.trim()) return;
     const newRoadmap = {
       id: `roadmap-${Date.now()}`,
       title: title.trim(),
@@ -538,14 +459,14 @@ export function AppProvider({ children }) {
       ]
     };
 
-    setRoadmaps(prev => [...prev, newRoadmap]);
+    setRoadmaps(prev => [...(prev || []), newRoadmap]);
     setActiveRoadmapId(newRoadmap.id);
     setActiveTab('roadmap');
   };
 
   // Delete dynamic Roadmap
   const deleteRoadmap = (roadmapId) => {
-    setRoadmaps(prev => prev.filter(r => r.id !== roadmapId));
+    setRoadmaps(prev => (prev || []).filter(r => r && r.id !== roadmapId));
     if (activeRoadmapId === roadmapId) {
       setActiveRoadmapId('web-dev');
       setActiveTab('dashboard');
@@ -555,15 +476,15 @@ export function AppProvider({ children }) {
   // Reset progress for single roadmap
   const resetRoadmapProgress = (roadmapId) => {
     setRoadmaps(prev => {
-      const updated = prev.map(rm => {
-        if (rm.id !== roadmapId) return rm;
+      const updated = (prev || []).map(rm => {
+        if (!rm || rm.id !== roadmapId) return rm;
         return {
           ...rm,
-          sections: rm.sections.map(sec => ({
+          sections: (rm.sections || []).map(sec => ({
             ...sec,
-            subsections: sec.subsections.map(sub => ({
+            subsections: (sec.subsections || []).map(sub => ({
               ...sub,
-              items: sub.items.map(item => ({
+              items: (sub.items || []).map(item => ({
                 ...item,
                 completed: false,
                 status: 'not_started',
@@ -580,25 +501,7 @@ export function AppProvider({ children }) {
 
   // Reset all roadmaps progress
   const resetAllRoadmaps = () => {
-    setRoadmaps(prev => {
-      const updated = prev.map(rm => ({
-        ...rm,
-        sections: rm.sections.map(sec => ({
-          ...sec,
-          subsections: sec.subsections.map(sub => ({
-            ...sub,
-            items: sub.items.map(item => ({
-              ...item,
-              completed: false,
-              status: 'not_started',
-              completedAt: null
-            }))
-          }))
-        }))
-      }));
-      addHistorySnapshot(updated);
-      return updated;
-    });
+    setRoadmaps(initialRoadmaps);
   };
 
   // PROJECT ACTIONS
@@ -615,26 +518,26 @@ export function AppProvider({ children }) {
       startDate: projectData.startDate || new Date().toISOString().split('T')[0],
       completionDate: projectData.completionDate || '',
       notes: projectData.notes || '',
-      checklist: projectData.checklist || []
+      checklist: Array.isArray(projectData.checklist) ? projectData.checklist : []
     };
-    setProjects(prev => [newProj, ...prev]);
+    setProjects(prev => [newProj, ...(prev || [])]);
   };
 
   const updateProject = (projectId, updatedFields) => {
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updatedFields } : p));
+    setProjects(prev => (prev || []).map(p => p && p.id === projectId ? { ...p, ...updatedFields } : p));
   };
 
   const deleteProject = (projectId) => {
-    setProjects(prev => prev.filter(p => p.id !== projectId));
+    setProjects(prev => (prev || []).filter(p => p && p.id !== projectId));
   };
 
   const toggleProjectTask = (projectId, taskId) => {
-    setProjects(prev => prev.map(p => {
-      if (p.id !== projectId) return p;
+    setProjects(prev => (prev || []).map(p => {
+      if (!p || p.id !== projectId) return p;
       return {
         ...p,
-        checklist: p.checklist.map(task => {
-          if (task.id !== taskId) return task;
+        checklist: (p.checklist || []).map(task => {
+          if (!task || task.id !== taskId) return task;
           return { ...task, completed: !task.completed };
         })
       };
@@ -642,22 +545,22 @@ export function AppProvider({ children }) {
   };
 
   const addProjectTask = (projectId, taskTitle) => {
-    if (!taskTitle.trim()) return;
+    if (!taskTitle || !taskTitle.trim()) return;
     const newTask = {
       id: `ctask-${Date.now()}`,
       title: taskTitle.trim(),
       completed: false
     };
-    setProjects(prev => prev.map(p => {
-      if (p.id !== projectId) return p;
-      return { ...p, checklist: [...p.checklist, newTask] };
+    setProjects(prev => (prev || []).map(p => {
+      if (!p || p.id !== projectId) return p;
+      return { ...p, checklist: [...(p.checklist || []), newTask] };
     }));
   };
 
   const deleteProjectTask = (projectId, taskId) => {
-    setProjects(prev => prev.map(p => {
-      if (p.id !== projectId) return p;
-      return { ...p, checklist: p.checklist.filter(t => t.id !== taskId) };
+    setProjects(prev => (prev || []).map(p => {
+      if (!p || p.id !== projectId) return p;
+      return { ...p, checklist: (p.checklist || []).filter(t => t && t.id !== taskId) };
     }));
   };
 
@@ -697,103 +600,38 @@ export function AppProvider({ children }) {
     }
   };
 
-  const toggleTheme = () => {
-    setSettings(prev => ({
-      ...prev,
-      theme: prev.theme === 'dark' ? 'light' : 'dark'
-    }));
-  };
-
   const unlockApp = () => {
     setIsUnlocked(true);
-    sessionStorage.setItem('my_tech_tracker_unlocked', 'true');
+    try {
+      sessionStorage.setItem('my_tech_tracker_unlocked', 'true');
+    } catch (e) {}
   };
 
   const lockApp = () => {
     setIsUnlocked(false);
-    sessionStorage.removeItem('my_tech_tracker_unlocked');
+    try {
+      sessionStorage.removeItem('my_tech_tracker_unlocked');
+    } catch (e) {}
   };
 
   const setMasterPasscode = (passcode) => {
     setSettings(prev => ({ ...prev, masterPasscode: passcode }));
   };
 
-  const addTodo = (todoData) => {
-    const newTodo = {
-      id: `todo-${Date.now()}`,
-      title: todoData.title,
-      category: todoData.category || 'General',
-      priority: todoData.priority || 'Medium',
-      dueTime: todoData.dueTime || '20:00',
-      completed: false,
-      notifyPhone: todoData.notifyPhone !== false,
-      reminderTriggered: false,
-      createdAt: new Date().toISOString()
-    };
-    setTodos(prev => [newTodo, ...prev]);
-  };
-
-  const toggleTodo = (id) => {
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-  };
-
-  const deleteTodo = (id) => {
-    setTodos(prev => prev.filter(t => t.id !== id));
-  };
-
-  const toggleScheduleSlot = (slotId) => {
-    setWeeklySchedule(prev => prev.map(s => s.id === slotId ? { ...s, active: !s.active } : s));
-  };
-
-  const updateScheduleSlotTime = (slotId, startTime, endTime, displayTime) => {
-    setWeeklySchedule(prev => prev.map(s => {
-      if (s.id !== slotId) return s;
-      return { ...s, startTime, endTime, displayTime: displayTime || `${startTime}–${endTime}` };
+  const toggleTheme = () => {
+    setSettings(prev => ({
+      ...prev,
+      theme: prev?.theme === 'dark' ? 'light' : 'dark'
     }));
-  };
-
-  const addScheduleSlot = (slotData) => {
-    const dayMap = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 0 };
-    const newSlot = {
-      id: `sch-${Date.now()}`,
-      day: slotData.day,
-      dayIndex: dayMap[slotData.day] ?? 1,
-      category: slotData.category || 'Development',
-      startTime: slotData.startTime || '09:00',
-      endTime: slotData.endTime || '11:00',
-      displayTime: slotData.displayTime || `${slotData.startTime}–${slotData.endTime}`,
-      active: true,
-      notifyPhone: true,
-      lastTriggeredDate: ''
-    };
-    setWeeklySchedule(prev => [...prev, newSlot]);
-  };
-
-  const deleteScheduleSlot = (slotId) => {
-    setWeeklySchedule(prev => prev.filter(s => s.id !== slotId));
-  };
-
-  const resetScheduleToPreset = () => {
-    setWeeklySchedule(initialWeeklySchedule);
   };
 
   return (
     <AppContext.Provider
       value={{
-        roadmaps,
-        projects,
-        progressHistory,
-        settings,
-        todos,
-        weeklySchedule,
-        addTodo,
-        toggleTodo,
-        deleteTodo,
-        toggleScheduleSlot,
-        updateScheduleSlotTime,
-        addScheduleSlot,
-        deleteScheduleSlot,
-        resetScheduleToPreset,
+        roadmaps: Array.isArray(roadmaps) ? roadmaps : initialRoadmaps,
+        projects: Array.isArray(projects) ? projects : initialProjects,
+        progressHistory: Array.isArray(progressHistory) ? progressHistory : [],
+        settings: settings || {},
         isUnlocked,
         unlockApp,
         lockApp,
